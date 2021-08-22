@@ -1,6 +1,7 @@
 <?php
 
 use Model\Boosterpack_model;
+use Model\Comment_model;
 use Model\Post_model;
 use Model\User_model;
 
@@ -46,7 +47,7 @@ class Main_page extends MY_Controller
 
     public function get_post(int $post_id)
     {
-        $post = Post_model::preparation(Post_model::get_post($post_id));
+        $post = Post_model::preparation(Post_model::get_post($post_id), 'full_info');
         if ($post === NULL)
         {
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_WRONG_PARAMS);
@@ -61,8 +62,9 @@ class Main_page extends MY_Controller
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
+        $comment = Comment_model::add_comment($this->input->post());
 
-
+        return $this->response_success(['comment' => $comment]);
     }
 
     public function login()
@@ -70,7 +72,7 @@ class Main_page extends MY_Controller
         $user = User_model::find_user_by_email($this->input->post_get('login'));
         if ($user->get_id()) {
             if ($user->validate_password($this->input->post_get('password'))) {
-                $this->session->set_userdata('id', 1);
+                $this->session->set_userdata('id', $user->get_id());
 
                 return $this->response_success(['user' => $user]);
             }

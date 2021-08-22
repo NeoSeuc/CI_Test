@@ -149,9 +149,12 @@ class Post_model extends Emerald_Model
     /**
      * @return Comment_model[]
      */
-    public function get_comments():array
+    public function get_comments(): array
     {
-       //TODO
+        return Comment_model::transform_many(App::get_s()
+            ->from(Comment_model::CLASS_TABLE)
+            ->where(['assign_id' => $this->get_id()])
+            ->many());
     }
 
     /**

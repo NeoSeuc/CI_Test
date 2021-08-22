@@ -57,6 +57,23 @@ class Comment_model extends Emerald_Model {
     }
 
     /**
+     * @param array $postData
+     *
+     * @return Comment_model
+     */
+    public static function add_comment(array $postData): Comment_model
+    {
+        $user = User_model::get_user();
+        $data['user_id'] = $user->get_id();
+        $data['likes'] = 0;
+        $data['assign_id'] = $postData['postId'];
+        $data['text'] = $postData['commentText'];
+        $data['reply_id'] = $postData['replyId'] ?: NULL;
+
+        return Comment_model::create($data);
+    }
+
+    /**
      * @return int
      */
     public function get_assing_id(): int

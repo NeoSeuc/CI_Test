@@ -85,6 +85,23 @@ var app = new Vue({
 			}
 
 		},
+		replyToComment: function(id) {
+			var self = this;
+			if(self.commentText) {
+
+				var comment = new FormData();
+				comment.append('postId', id);
+				comment.append('commentText', self.commentText);
+
+				axios.post(
+					'/main_page/comment',
+					comment
+				).then(function () {
+
+				});
+			}
+
+		},
 		refill: function () {
 			var self= this;
 			if(self.addSum === 0){
