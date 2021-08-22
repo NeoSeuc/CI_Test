@@ -346,7 +346,10 @@ class User_model extends Emerald_model {
      */
     public static function find_user_by_email(string $email): User_model
     {
-        //TODO
+        return static::transform_one(App::get_s()->from(self::CLASS_TABLE)
+            ->where(['email' => $email])
+            ->select()
+            ->one());
     }
 
     /**
@@ -453,4 +456,15 @@ class User_model extends Emerald_model {
         return $o;
     }
 
+    /*
+     * Makes comparisons user password and password from argument
+     *
+     * @param string
+     *
+     * @return bool
+     */
+    public function validate_password(string $password): bool
+    {
+        return $this->password === $password;
+    }
 }

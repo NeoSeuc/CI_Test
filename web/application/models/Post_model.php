@@ -179,6 +179,15 @@ class Post_model extends Emerald_Model
         $this->set_id($id);
     }
 
+    public static function get_post(int $post_id): ?Post_model
+    {
+        try {
+            return new self($post_id);
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
     public function reload()
     {
         parent::reload();

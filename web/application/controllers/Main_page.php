@@ -15,7 +15,6 @@ class Main_page extends MY_Controller
 
     public function __construct()
     {
-
         parent::__construct();
 
         if (is_prod())
@@ -33,47 +32,62 @@ class Main_page extends MY_Controller
 
     public function get_all_posts()
     {
-        $posts =  Post_model::preparation_many(Post_model::get_all(), 'default');
+        $posts = Post_model::preparation_many(Post_model::get_all(), 'default');
+
         return $this->response_success(['posts' => $posts]);
     }
 
     public function get_boosterpacks()
     {
-        $posts =  Boosterpack_model::preparation_many(Boosterpack_model::get_all(), 'default');
+        $posts = Boosterpack_model::preparation_many(Boosterpack_model::get_all(), 'default');
+
         return $this->response_success(['boosterpacks' => $posts]);
     }
 
-    public function get_post(int $post_id){
+    public function get_post(int $post_id)
+    {
+        $post = Post_model::preparation(Post_model::get_post($post_id));
+        if ($post === NULL)
+        {
+            return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_WRONG_PARAMS);
+        }
 
-        //TODO получения поста по id
+        return $this->response_success(['post' => $post]);
     }
 
-
-    public function comment(){
-
-        if ( ! User_model::is_logged())
-        {
+    public function comment()
+    {
+        if ( ! User_model::is_logged()) {
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        //TODO логика комментирования поста
-    }
 
+
+    }
 
     public function login()
     {
-        //TODO
+        $user = User_model::find_user_by_email($this->input->post_get('login'));
+        if ($user->get_id()) {
+            if ($user->validate_password($this->input->post_get('password'))) {
+                $this->session->set_userdata('id', 1);
 
-        return $this->response_success();
+                return $this->response_success(['user' => $user]);
+            }
+        }
+
+        return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_WRONG_PARAMS);
     }
-
 
     public function logout()
     {
-        //TODO
+        $this->session->unset_userdata('id');
+
+        redirect('/');
     }
 
-    public function add_money(){
+    public function add_money()
+    {
         if ( ! User_model::is_logged())
         {
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
