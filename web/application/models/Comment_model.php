@@ -73,6 +73,11 @@ class Comment_model extends Emerald_Model {
         return Comment_model::create($data);
     }
 
+    public static function get_comment(int $id): Comment_model
+    {
+        return new self($id);
+    }
+
     /**
      * @return int
      */
@@ -262,7 +267,14 @@ class Comment_model extends Emerald_Model {
      */
     public function increment_likes(User_model $user): bool
     {
-        //TODO
+        if ($user->get_likes_balance() > 0)
+        {
+            $user->decrement_likes();
+
+            return $this->save('likes', ++$this->likes);
+        }
+
+        return FALSE;
     }
 
     public static function get_all_by_replay_id(int $reply_id)

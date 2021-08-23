@@ -46,7 +46,7 @@ use Model\User_model;
         <li class="nav-item">
             <?  if (User_model::is_logged()) {?>
                 <a href="" role="button">
-                    Likes:
+                    Likes: <?= $user->like_balance ?>
                 </a>
             <? }?>
         </li>

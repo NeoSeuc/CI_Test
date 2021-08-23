@@ -16,6 +16,7 @@ use System\Emerald\Emerald_model;
 class User_model extends Emerald_model {
     const CLASS_TABLE = 'user';
 
+    const RESPONSE_NO_ENOUGH_LIKES = 'No enough likes on a balance';
 
     /** @var string */
     protected $email;
@@ -370,8 +371,6 @@ class User_model extends Emerald_model {
         return $steam_id > 0;
     }
 
-
-
     /**
      * Returns current user or empty model
      *
@@ -451,6 +450,8 @@ class User_model extends Emerald_model {
 
             $o->time_created = $data->get_time_created();
             $o->time_updated = $data->get_time_updated();
+
+            $o->like_balance = $data->get_likes_balance();
         }
 
         return $o;

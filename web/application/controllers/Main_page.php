@@ -118,13 +118,20 @@ class Main_page extends MY_Controller
      */
     public function like_comment(int $comment_id)
     {
-        // Check user is authorize
         if ( ! User_model::is_logged())
         {
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        //TODO логика like comment(remove like у юзерa, добавить лай к комменту)
+        $user = User_model::get_user()->reload();
+        $comment = Comment_model::get_comment($comment_id);
+        if ( $comment->increment_likes($user) )
+        {
+            return $this->response_success(['user' => $user, 'comment' => $comment]);
+        } else {
+            return $this->response_error(User_model::RESPONSE_NO_ENOUGH_LIKES);
+        }
+
     }
 
     /**
