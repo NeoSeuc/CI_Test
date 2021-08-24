@@ -267,14 +267,23 @@ class Comment_model extends Emerald_Model {
      */
     public function increment_likes(User_model $user): bool
     {
-        if ($user->get_likes_balance() > 0)
+        if ($user->get_likes_balance() === 0)
         {
-            $user->decrement_likes();
-
-            return $this->save('likes', ++$this->likes);
+            return FALSE;
         }
 
-        return FALSE;
+        App::get_s()->set_transaction_repeatable_read()->execute();
+        App::get_s()->start_trans()->execute();
+        $decremented = $user->decrement_likes();
+        $incremented = $this->save('likes', ++$this->likes);
+        if ( $decremented && $incremented )
+        {
+            App::get_s()->commit()->execute();
+            return TRUE;
+        } else {
+            App::get_s()->rollback()->execute();
+            return FALSE;
+        }
     }
 
     public static function get_all_by_replay_id(int $reply_id)

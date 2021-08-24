@@ -227,7 +227,23 @@ class Post_model extends Emerald_Model
      */
     public function increment_likes(User_model $user): bool
     {
-        //TODO
+        if ($user->get_likes_balance() === 0)
+        {
+            return FALSE;
+        }
+
+        App::get_s()->set_transaction_repeatable_read()->execute();
+        App::get_s()->start_trans()->execute();
+        $decremented = $user->decrement_likes();
+        $incremented = $this->save('likes', ++$this->likes);
+        if ( $decremented && $incremented )
+        {
+            App::get_s()->commit()->execute();
+            return TRUE;
+        } else {
+            App::get_s()->rollback()->execute();
+            return FALSE;
+        }
     }
 
 

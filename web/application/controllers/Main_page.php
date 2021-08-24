@@ -127,7 +127,11 @@ class Main_page extends MY_Controller
         $comment = Comment_model::get_comment($comment_id);
         if ( $comment->increment_likes($user) )
         {
-            return $this->response_success(['user' => $user, 'comment' => $comment]);
+            return $this->response_success(
+                [
+                    'user' => User_model::preparation($user),
+                    'comment' => Comment_model::preparation($comment),
+                ]);
         } else {
             return $this->response_error(User_model::RESPONSE_NO_ENOUGH_LIKES);
         }
@@ -147,7 +151,19 @@ class Main_page extends MY_Controller
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        //TODO логика like post(remove like у юзерa, добавить лай к посту)
+        $post = Post_model::get_post($post_id);
+        $user = User_model::get_user()->reload();
+
+        if ( $post->increment_likes($user))
+        {
+            return $this->response_success(
+                [
+                    'user' => User_model::preparation($user),
+                    'post' => Post_model::preparation($post),
+                ]);
+        } else {
+            return $this->response_error(User_model::RESPONSE_NO_ENOUGH_LIKES);
+        }
     }
 
 
