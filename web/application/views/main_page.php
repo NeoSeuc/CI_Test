@@ -47,6 +47,7 @@ use Model\User_model;
             <?  if (User_model::is_logged()) {?>
                 <a href="" role="button">
                     Likes: <?= $user->like_balance ?>
+                    Money: <?= $user->wallet_balance ?>
                 </a>
             <? }?>
         </li>

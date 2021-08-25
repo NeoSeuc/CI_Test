@@ -71,9 +71,9 @@ class Main_page extends MY_Controller
     {
         $user = User_model::find_user_by_email($this->input->post_get('login'));
         if ($user->get_id()) {
-            if ($user->validate_password($this->input->post_get('password'))) {
+            if ($user->validate_password($this->input->post_get('password')))
+            {
                 $this->session->set_userdata('id', $user->get_id());
-
                 return $this->response_success(['user' => $user]);
             }
         }
@@ -97,7 +97,14 @@ class Main_page extends MY_Controller
 
         $sum = (float)App::get_ci()->input->post('sum');
 
-        //TODO логика добавления денег
+        $user = User_model::get_user();
+
+        if ( $user->add_money($sum) )
+        {
+            return $this->response_success();
+        } else {
+            return $this->response_error(System\Libraries\Core::DB_STATE_ERROR);
+        }
     }
 
     public function buy_boosterpack()
@@ -123,7 +130,7 @@ class Main_page extends MY_Controller
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        $user = User_model::get_user()->reload();
+        $user = User_model::get_user();
         $comment = Comment_model::get_comment($comment_id);
         if ( $comment->increment_likes($user) )
         {
@@ -152,7 +159,7 @@ class Main_page extends MY_Controller
         }
 
         $post = Post_model::get_post($post_id);
-        $user = User_model::get_user()->reload();
+        $user = User_model::get_user();
 
         if ( $post->increment_likes($user))
         {

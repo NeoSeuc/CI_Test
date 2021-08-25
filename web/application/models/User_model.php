@@ -268,8 +268,15 @@ class User_model extends Emerald_model {
      */
     public function add_money(float $sum): bool
     {
-        //TODO добавление денег
-
+        App::get_s()
+            ->from($this->get_table())
+            ->where(['id' => $this->id])
+            ->update(
+                [
+                    'wallet_balance' => $this->get_wallet_balance() + $sum,
+                    'wallet_total_refilled' => $this->get_wallet_total_refilled() + $sum,
+                ])
+            ->execute();
         return TRUE;
     }
 
@@ -452,6 +459,7 @@ class User_model extends Emerald_model {
             $o->time_updated = $data->get_time_updated();
 
             $o->like_balance = $data->get_likes_balance();
+            $o->wallet_balance = $data->get_wallet_balance();
         }
 
         return $o;
