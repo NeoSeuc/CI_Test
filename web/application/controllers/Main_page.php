@@ -115,12 +115,18 @@ class Main_page extends MY_Controller
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        //TODO логика покупки и открытия бустерпака по алгоритмку профитбанк, как описано в ТЗ
+        $boosterpack = Boosterpack_model::get_boosterpack($this->input->post('id'));
+        $amount = $boosterpack->open();
+
+        if ($amount != 0)
+        {
+            return $this->response_success(['amount' => $amount]);
+        } else {
+            return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NO_DATA);
+        }
     }
 
-
     /**
-     *
      * @return object|string|void
      */
     public function like_comment(int $comment_id)
@@ -172,7 +178,6 @@ class Main_page extends MY_Controller
             return $this->response_error(User_model::RESPONSE_NO_ENOUGH_LIKES);
         }
     }
-
 
     /**
      * @return object|string|void

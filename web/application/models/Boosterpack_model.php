@@ -52,6 +52,15 @@ class Boosterpack_model extends Emerald_model
     }
 
     /**
+     * @param int $id
+     * @return Boosterpack_model
+     */
+    public static function get_boosterpack(int $id): Boosterpack_model
+    {
+        return new self($id);
+    }
+
+    /**
      * @return float
      */
     public function get_bank(): float
@@ -134,7 +143,18 @@ class Boosterpack_model extends Emerald_model
      */
     public function get_boosterpack_info(): array
     {
-        //TODO
+        $maxItemPrice = $this->bank + ($this->price - $this->us);
+
+        return App::get_s()
+            ->from(Boosterpack_info_model::CLASS_TABLE)
+            ->join(Item_model::CLASS_TABLE . ' i', ['item_id' => 'i.id'])
+            ->where(
+                [
+                    'boosterpack_id' => $this->get_id(),
+                    'i.price <' => $maxItemPrice,
+                ]
+            )
+            ->many();
     }
 
     function __construct($id = NULL)
@@ -173,7 +193,34 @@ class Boosterpack_model extends Emerald_model
      */
     public function open(): int
     {
-        //TODO
+        $user = User_model::get_user();
+        if ($user->get_wallet_balance() < $this->price)
+        {
+            return 0;
+        }
+
+        $items = $this->get_boosterpack_info();
+        shuffle($items);
+        if ($items)
+        {
+            $likes = (int)$items[0]['price'];
+            $new_wallet_ballance = $user->get_wallet_balance() - $this->price;
+            $new_wallet_total_withdrawn = $user->get_wallet_total_withdrawn() + $this->price;
+            $new_likes_balance = $user->get_likes_balance() + $likes;
+            $user->update([
+                'wallet_balance' => $new_wallet_ballance,
+                'wallet_total_withdrawn' => $new_wallet_total_withdrawn,
+                'likes_balance' => $new_likes_balance,
+            ]);
+
+            $new_bank_value = $this->bank + ($this->price - $this->us - $likes);
+            $new_bank_value = $new_bank_value > 0 ? $new_bank_value : 0;
+            $this->set_bank($new_bank_value);
+
+            return $likes;
+        } else {
+            return 0;
+        }
     }
 
     /**

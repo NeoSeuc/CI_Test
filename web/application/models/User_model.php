@@ -476,4 +476,13 @@ class User_model extends Emerald_model {
     {
         return $this->password === $password;
     }
+
+    public function update(array $array)
+    {
+        App::get_s()
+            ->from(self::CLASS_TABLE)
+            ->where(['id' => $this->id])
+            ->update($array)
+            ->execute();
+    }
 }
