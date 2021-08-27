@@ -256,7 +256,13 @@ class Comment_model extends Emerald_Model {
      */
     public static function get_all_by_assign_id(int $assign_id): array
     {
-        return static::transform_many(App::get_s()->from(self::CLASS_TABLE)->where(['assign_id' => $assign_id])->orderBy('time_created', 'ASC')->many());
+        return static::transform_many(
+            App::get_s()
+                ->from(self::CLASS_TABLE)
+                ->where(['assign_id' => $assign_id])
+                ->orderBy('time_created', 'ASC')
+                ->many()
+        );
     }
 
     /**
@@ -279,9 +285,11 @@ class Comment_model extends Emerald_Model {
         if ( $decremented && $incremented )
         {
             App::get_s()->commit()->execute();
+
             return TRUE;
         } else {
             App::get_s()->rollback()->execute();
+
             return FALSE;
         }
     }

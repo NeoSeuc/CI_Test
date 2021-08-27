@@ -73,9 +73,10 @@ class Boosterpack_model extends Emerald_model
      *
      * @return bool
      */
-    public function set_bank(float $bank):bool
+    public function set_bank(float $bank): bool
     {
         $this->bank = $bank;
+
         return $this->save('bank', $bank);
     }
 
@@ -188,15 +189,12 @@ class Boosterpack_model extends Emerald_model
         return static::transform_many(App::get_s()->from(self::CLASS_TABLE)->many());
     }
 
-    /**
-     * @return int
-     */
     public function open(): int
     {
         $user = User_model::get_user();
         if ($user->get_wallet_balance() < $this->price)
         {
-            return 0;
+            return FALSE;
         }
 
         $items = $this->get_boosterpack_info();
@@ -207,7 +205,10 @@ class Boosterpack_model extends Emerald_model
             $new_wallet_ballance = $user->get_wallet_balance() - $this->price;
             $new_wallet_total_withdrawn = $user->get_wallet_total_withdrawn() + $this->price;
             $new_likes_balance = $user->get_likes_balance() + $likes;
-            $user->update([
+            App::get_s()->set_transaction_repeatable_read()->execute();
+            App::get_s()->start_trans()->execute();
+
+            $userUpdated = $user->update([
                 'wallet_balance' => $new_wallet_ballance,
                 'wallet_total_withdrawn' => $new_wallet_total_withdrawn,
                 'likes_balance' => $new_likes_balance,
@@ -215,12 +216,21 @@ class Boosterpack_model extends Emerald_model
 
             $new_bank_value = $this->bank + ($this->price - $this->us - $likes);
             $new_bank_value = $new_bank_value > 0 ? $new_bank_value : 0;
-            $this->set_bank($new_bank_value);
+            $updatedBank = $this->set_bank($new_bank_value);
 
-            return $likes;
-        } else {
-            return 0;
+            if ( $userUpdated && $updatedBank )
+            {
+                App::get_s()->commit()->execute();
+
+                return $likes;
+            } else {
+                App::get_s()->rollback()->execute();
+
+                return FALSE;
+            }
         }
+
+        return FALSE;
     }
 
     /**

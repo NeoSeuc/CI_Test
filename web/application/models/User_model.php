@@ -277,7 +277,12 @@ class User_model extends Emerald_model {
                     'wallet_total_refilled' => $this->get_wallet_total_refilled() + $sum,
                 ])
             ->execute();
-        return TRUE;
+
+       if ( App::get_s()->is_affected()) {
+           return TRUE;
+       }
+
+       return FALSE;
     }
 
 
@@ -477,12 +482,26 @@ class User_model extends Emerald_model {
         return $this->password === $password;
     }
 
-    public function update(array $array)
+    /**
+     * Update user object
+     *
+     * @param array $array
+     * @return bool
+     * @throws Exception
+     */
+    public function update(array $array): bool
     {
         App::get_s()
             ->from(self::CLASS_TABLE)
             ->where(['id' => $this->id])
             ->update($array)
             ->execute();
+
+        if ( App::get_s()->is_affected())
+        {
+            return TRUE;
+        }
+
+        return FALSE;
     }
 }
