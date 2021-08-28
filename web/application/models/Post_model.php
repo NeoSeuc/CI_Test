@@ -4,6 +4,8 @@ use App;
 use Exception;
 use stdClass;
 use System\Emerald\Emerald_model;
+use Transaction;
+use Transaction_type;
 
 /**
  * Created by PhpStorm.
@@ -15,14 +17,12 @@ class Post_model extends Emerald_Model
 {
     const CLASS_TABLE = 'post';
 
-
     /** @var int */
     protected $user_id;
     /** @var string */
     protected $text;
     /** @var string */
     protected $img;
-
     /** @var string */
     protected $time_created;
     /** @var string */
@@ -33,6 +33,19 @@ class Post_model extends Emerald_Model
     protected $likes;
     protected $user;
 
+    /** @var Transaction */
+    protected $transaction;
+
+    function __construct($id = NULL)
+    {
+        parent::__construct();
+
+        App::get_ci()->load->library('transaction/transaction');
+        App::get_ci()->load->library('transaction/transaction_type');
+
+        $this->transaction = new Transaction();
+        $this->set_id($id);
+    }
 
     /**
      * @return int
@@ -176,12 +189,6 @@ class Post_model extends Emerald_Model
         return $this->user;
     }
 
-    function __construct($id = NULL)
-    {
-        parent::__construct();
-        $this->set_id($id);
-    }
-
     public static function get_post(int $post_id): ?Post_model
     {
         try {
@@ -240,6 +247,14 @@ class Post_model extends Emerald_Model
 
         if ( $decremented && $incremented ) {
             App::get_s()->commit()->execute();
+
+            $this->transaction->log(
+                $user->get_id(),
+                Transaction_type::OBJECT_POST,
+                Transaction_type::ACTION_LIKE,
+                $this->get_id(),
+                1
+            );
 
             return TRUE;
         }

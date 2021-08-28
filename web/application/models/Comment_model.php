@@ -6,6 +6,8 @@ use App;
 use Exception;
 use stdClass;
 use System\Emerald\Emerald_model;
+use Transaction;
+use Transaction_type;
 
 /**
  * Created by PhpStorm.
@@ -36,6 +38,19 @@ class Comment_model extends Emerald_Model {
     protected $likes;
     protected $user;
 
+    /** @var Transaction */
+    private $transaction;
+
+    function __construct($id = NULL)
+    {
+        parent::__construct();
+
+        App::get_ci()->load->library('transaction/transaction');
+        App::get_ci()->load->library('transaction/transaction_type');
+
+        $this->transaction = new Transaction();
+        $this->set_id($id);
+    }
 
     /**
      * @return int
@@ -222,13 +237,6 @@ class Comment_model extends Emerald_Model {
         return $this->user;
     }
 
-    function __construct($id = NULL)
-    {
-        parent::__construct();
-
-        $this->set_id($id);
-    }
-
     public function reload()
     {
         parent::reload();
@@ -285,6 +293,14 @@ class Comment_model extends Emerald_Model {
         if ( $decremented && $incremented )
         {
             App::get_s()->commit()->execute();
+
+            $this->transaction->log(
+                $user->get_id(),
+                Transaction_type::OBJECT_COMMENT,
+                Transaction_type::ACTION_LIKE,
+                $this->get_id(),
+                1
+            );
 
             return TRUE;
         } else {

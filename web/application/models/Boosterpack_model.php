@@ -6,6 +6,8 @@ use Exception;
 use System\Emerald\Emerald_model;
 use stdClass;
 use ShadowIgniterException;
+use Transaction;
+use Transaction_type;
 
 /**
  * Created by PhpStorm.
@@ -31,6 +33,20 @@ class Boosterpack_model extends Emerald_model
     protected $time_created;
     /** @var string */
     protected $time_updated;
+
+    /** @var Transaction */
+    protected $transaction;
+
+    function __construct($id = NULL)
+    {
+        parent::__construct();
+
+        App::get_ci()->load->library('transaction/transaction');
+        App::get_ci()->load->library('transaction/transaction_type');
+
+        $this->transaction = new Transaction();
+        $this->set_id($id);
+    }
 
     /**
      * @return float
@@ -158,13 +174,6 @@ class Boosterpack_model extends Emerald_model
             ->many();
     }
 
-    function __construct($id = NULL)
-    {
-        parent::__construct();
-
-        $this->set_id($id);
-    }
-
     public function reload()
     {
         parent::reload();
@@ -221,6 +230,14 @@ class Boosterpack_model extends Emerald_model
             if ( $userUpdated && $updatedBank )
             {
                 App::get_s()->commit()->execute();
+
+                $this->transaction->log(
+                    $user->get_id(),
+                    Transaction_type::OBJECT_BOOSTERPACK,
+                    Transaction_type::ACTION_OPEN,
+                    $this->get_id(),
+                    $this->get_price()
+                );
 
                 return $likes;
             } else {

@@ -6,6 +6,8 @@ use Exception;
 use http\Client\Curl\User;
 use stdClass;
 use System\Emerald\Emerald_model;
+use Transaction;
+use Transaction_type;
 
 /**
  * Created by PhpStorm.
@@ -45,6 +47,20 @@ class User_model extends Emerald_model {
 
 
     private static $_current_user;
+
+    /** @var Transaction */
+    private $transaction;
+
+    function __construct($id = NULL)
+    {
+        parent::__construct();
+
+        App::get_ci()->load->library('transaction/transaction');
+        App::get_ci()->load->library('transaction/transaction_type');
+
+        $this->transaction = new Transaction();
+        $this->set_id($id);
+    }
 
     /**
      * @return string
@@ -247,13 +263,6 @@ class User_model extends Emerald_model {
         return $this->save('time_updated', $time_updated);
     }
 
-
-    function __construct($id = NULL)
-    {
-        parent::__construct();
-        $this->set_id($id);
-    }
-
     public function reload()
     {
         parent::reload();
@@ -279,6 +288,14 @@ class User_model extends Emerald_model {
             ->execute();
 
        if ( App::get_s()->is_affected()) {
+           $this->transaction->log(
+               $this->get_id(),
+               Transaction_type::OBJECT_MONEY,
+               Transaction_type::ACTION_ADD,
+               $this->get_id(),
+               $sum
+           );
+
            return TRUE;
        }
 
