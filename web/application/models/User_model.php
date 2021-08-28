@@ -6,6 +6,8 @@ use Exception;
 use http\Client\Curl\User;
 use stdClass;
 use System\Emerald\Emerald_model;
+use Transaction;
+use Transaction_type;
 
 /**
  * Created by PhpStorm.
@@ -16,6 +18,7 @@ use System\Emerald\Emerald_model;
 class User_model extends Emerald_model {
     const CLASS_TABLE = 'user';
 
+    const RESPONSE_NO_ENOUGH_LIKES = 'No enough likes on a balance';
 
     /** @var string */
     protected $email;
@@ -44,6 +47,20 @@ class User_model extends Emerald_model {
 
 
     private static $_current_user;
+
+    /** @var Transaction */
+    private $transaction;
+
+    function __construct($id = NULL)
+    {
+        parent::__construct();
+
+        App::get_ci()->load->library('transaction/transaction');
+        App::get_ci()->load->library('transaction/transaction_type');
+
+        $this->transaction = new Transaction();
+        $this->set_id($id);
+    }
 
     /**
      * @return string
@@ -246,13 +263,6 @@ class User_model extends Emerald_model {
         return $this->save('time_updated', $time_updated);
     }
 
-
-    function __construct($id = NULL)
-    {
-        parent::__construct();
-        $this->set_id($id);
-    }
-
     public function reload()
     {
         parent::reload();
@@ -267,9 +277,29 @@ class User_model extends Emerald_model {
      */
     public function add_money(float $sum): bool
     {
-        //TODO добавление денег
+        App::get_s()
+            ->from($this->get_table())
+            ->where(['id' => $this->id])
+            ->update(
+                [
+                    'wallet_balance' => $this->get_wallet_balance() + $sum,
+                    'wallet_total_refilled' => $this->get_wallet_total_refilled() + $sum,
+                ])
+            ->execute();
 
-        return TRUE;
+       if ( App::get_s()->is_affected()) {
+           $this->transaction->log(
+               $this->get_id(),
+               Transaction_type::OBJECT_MONEY,
+               Transaction_type::ACTION_ADD,
+               $this->get_id(),
+               $sum
+           );
+
+           return TRUE;
+       }
+
+       return FALSE;
     }
 
 
@@ -346,7 +376,10 @@ class User_model extends Emerald_model {
      */
     public static function find_user_by_email(string $email): User_model
     {
-        //TODO
+        return static::transform_one(App::get_s()->from(self::CLASS_TABLE)
+            ->where(['email' => $email])
+            ->select()
+            ->one());
     }
 
     /**
@@ -366,8 +399,6 @@ class User_model extends Emerald_model {
         $steam_id = intval(self::get_session_id());
         return $steam_id > 0;
     }
-
-
 
     /**
      * Returns current user or empty model
@@ -448,9 +479,46 @@ class User_model extends Emerald_model {
 
             $o->time_created = $data->get_time_created();
             $o->time_updated = $data->get_time_updated();
+
+            $o->like_balance = $data->get_likes_balance();
+            $o->wallet_balance = $data->get_wallet_balance();
         }
 
         return $o;
     }
 
+    /*
+     * Makes comparisons user password and password from argument
+     *
+     * @param string
+     *
+     * @return bool
+     */
+    public function validate_password(string $password): bool
+    {
+        return $this->password === $password;
+    }
+
+    /**
+     * Update user object
+     *
+     * @param array $array
+     * @return bool
+     * @throws Exception
+     */
+    public function update(array $array): bool
+    {
+        App::get_s()
+            ->from(self::CLASS_TABLE)
+            ->where(['id' => $this->id])
+            ->update($array)
+            ->execute();
+
+        if ( App::get_s()->is_affected())
+        {
+            return TRUE;
+        }
+
+        return FALSE;
+    }
 }

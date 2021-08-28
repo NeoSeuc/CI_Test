@@ -3,6 +3,7 @@ namespace Model;
 
 use App;
 use Cake\Database\Exception;
+use stdClass;
 use System\Emerald\Emerald_model;
 
 /**
@@ -126,5 +127,16 @@ class Boosterpack_info_model extends Emerald_model {
             ->many();
 
         return self::transform_many($data);
+    }
+
+    /**
+     * @param self $data
+     * @return stdClass
+     */
+    public static function preparation(Boosterpack_info_model $data): stdClass
+    {
+        $o = new stdClass();
+
+        return $o;
     }
 }

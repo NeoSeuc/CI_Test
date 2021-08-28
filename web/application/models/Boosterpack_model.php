@@ -6,6 +6,8 @@ use Exception;
 use System\Emerald\Emerald_model;
 use stdClass;
 use ShadowIgniterException;
+use Transaction;
+use Transaction_type;
 
 /**
  * Created by PhpStorm.
@@ -32,6 +34,20 @@ class Boosterpack_model extends Emerald_model
     /** @var string */
     protected $time_updated;
 
+    /** @var Transaction */
+    protected $transaction;
+
+    function __construct($id = NULL)
+    {
+        parent::__construct();
+
+        App::get_ci()->load->library('transaction/transaction');
+        App::get_ci()->load->library('transaction/transaction_type');
+
+        $this->transaction = new Transaction();
+        $this->set_id($id);
+    }
+
     /**
      * @return float
      */
@@ -52,6 +68,15 @@ class Boosterpack_model extends Emerald_model
     }
 
     /**
+     * @param int $id
+     * @return Boosterpack_model
+     */
+    public static function get_boosterpack(int $id): Boosterpack_model
+    {
+        return new self($id);
+    }
+
+    /**
      * @return float
      */
     public function get_bank(): float
@@ -64,9 +89,10 @@ class Boosterpack_model extends Emerald_model
      *
      * @return bool
      */
-    public function set_bank(float $bank):bool
+    public function set_bank(float $bank): bool
     {
         $this->bank = $bank;
+
         return $this->save('bank', $bank);
     }
 
@@ -134,14 +160,18 @@ class Boosterpack_model extends Emerald_model
      */
     public function get_boosterpack_info(): array
     {
-        //TODO
-    }
+        $maxItemPrice = $this->bank + ($this->price - $this->us);
 
-    function __construct($id = NULL)
-    {
-        parent::__construct();
-
-        $this->set_id($id);
+        return App::get_s()
+            ->from(Boosterpack_info_model::CLASS_TABLE)
+            ->join(Item_model::CLASS_TABLE . ' i', ['item_id' => 'i.id'])
+            ->where(
+                [
+                    'boosterpack_id' => $this->get_id(),
+                    'i.price <' => $maxItemPrice,
+                ]
+            )
+            ->many();
     }
 
     public function reload()
@@ -168,12 +198,56 @@ class Boosterpack_model extends Emerald_model
         return static::transform_many(App::get_s()->from(self::CLASS_TABLE)->many());
     }
 
-    /**
-     * @return int
-     */
     public function open(): int
     {
-        //TODO
+        $user = User_model::get_user();
+        if ($user->get_wallet_balance() < $this->price)
+        {
+            return FALSE;
+        }
+
+        $items = $this->get_boosterpack_info();
+        shuffle($items);
+        if ($items)
+        {
+            $likes = (int)$items[0]['price'];
+            $new_wallet_ballance = $user->get_wallet_balance() - $this->price;
+            $new_wallet_total_withdrawn = $user->get_wallet_total_withdrawn() + $this->price;
+            $new_likes_balance = $user->get_likes_balance() + $likes;
+            App::get_s()->set_transaction_repeatable_read()->execute();
+            App::get_s()->start_trans()->execute();
+
+            $userUpdated = $user->update([
+                'wallet_balance' => $new_wallet_ballance,
+                'wallet_total_withdrawn' => $new_wallet_total_withdrawn,
+                'likes_balance' => $new_likes_balance,
+            ]);
+
+            $new_bank_value = $this->bank + ($this->price - $this->us - $likes);
+            $new_bank_value = $new_bank_value > 0 ? $new_bank_value : 0;
+            $updatedBank = $this->set_bank($new_bank_value);
+
+            if ( $userUpdated && $updatedBank )
+            {
+                App::get_s()->commit()->execute();
+
+                $this->transaction->log(
+                    $user->get_id(),
+                    Transaction_type::OBJECT_BOOSTERPACK,
+                    Transaction_type::ACTION_OPEN,
+                    $this->get_id(),
+                    $this->get_price()
+                );
+
+                return $likes;
+            } else {
+                App::get_s()->rollback()->execute();
+
+                return FALSE;
+            }
+        }
+
+        return FALSE;
     }
 
     /**

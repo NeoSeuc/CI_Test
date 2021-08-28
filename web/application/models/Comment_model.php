@@ -6,6 +6,8 @@ use App;
 use Exception;
 use stdClass;
 use System\Emerald\Emerald_model;
+use Transaction;
+use Transaction_type;
 
 /**
  * Created by PhpStorm.
@@ -36,6 +38,19 @@ class Comment_model extends Emerald_Model {
     protected $likes;
     protected $user;
 
+    /** @var Transaction */
+    private $transaction;
+
+    function __construct($id = NULL)
+    {
+        parent::__construct();
+
+        App::get_ci()->load->library('transaction/transaction');
+        App::get_ci()->load->library('transaction/transaction_type');
+
+        $this->transaction = new Transaction();
+        $this->set_id($id);
+    }
 
     /**
      * @return int
@@ -54,6 +69,28 @@ class Comment_model extends Emerald_Model {
     {
         $this->user_id = $user_id;
         return $this->save('user_id', $user_id);
+    }
+
+    /**
+     * @param array $postData
+     *
+     * @return Comment_model
+     */
+    public static function add_comment(array $postData): Comment_model
+    {
+        $user = User_model::get_user();
+        $data['user_id'] = $user->get_id();
+        $data['likes'] = 0;
+        $data['assign_id'] = $postData['postId'];
+        $data['text'] = $postData['commentText'];
+        $data['reply_id'] = $postData['replyId'] ?: NULL;
+
+        return Comment_model::create($data);
+    }
+
+    public static function get_comment(int $id): Comment_model
+    {
+        return new self($id);
     }
 
     /**
@@ -200,13 +237,6 @@ class Comment_model extends Emerald_Model {
         return $this->user;
     }
 
-    function __construct($id = NULL)
-    {
-        parent::__construct();
-
-        $this->set_id($id);
-    }
-
     public function reload()
     {
         parent::reload();
@@ -234,7 +264,13 @@ class Comment_model extends Emerald_Model {
      */
     public static function get_all_by_assign_id(int $assign_id): array
     {
-        return static::transform_many(App::get_s()->from(self::CLASS_TABLE)->where(['assign_id' => $assign_id])->orderBy('time_created', 'ASC')->many());
+        return static::transform_many(
+            App::get_s()
+                ->from(self::CLASS_TABLE)
+                ->where(['assign_id' => $assign_id])
+                ->orderBy('time_created', 'ASC')
+                ->many()
+        );
     }
 
     /**
@@ -245,7 +281,33 @@ class Comment_model extends Emerald_Model {
      */
     public function increment_likes(User_model $user): bool
     {
-        //TODO
+        if ($user->get_likes_balance() === 0)
+        {
+            return FALSE;
+        }
+
+        App::get_s()->set_transaction_repeatable_read()->execute();
+        App::get_s()->start_trans()->execute();
+        $decremented = $user->decrement_likes();
+        $incremented = $this->save('likes', ++$this->likes);
+        if ( $decremented && $incremented )
+        {
+            App::get_s()->commit()->execute();
+
+            $this->transaction->log(
+                $user->get_id(),
+                Transaction_type::OBJECT_COMMENT,
+                Transaction_type::ACTION_LIKE,
+                $this->get_id(),
+                1
+            );
+
+            return TRUE;
+        } else {
+            App::get_s()->rollback()->execute();
+
+            return FALSE;
+        }
     }
 
     public static function get_all_by_replay_id(int $reply_id)

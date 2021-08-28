@@ -1,6 +1,8 @@
 <?php
 
 use Model\Boosterpack_model;
+use Model\Comment_model;
+use Model\Login_model;
 use Model\Post_model;
 use Model\User_model;
 
@@ -15,7 +17,6 @@ class Main_page extends MY_Controller
 
     public function __construct()
     {
-
         parent::__construct();
 
         if (is_prod())
@@ -33,47 +34,60 @@ class Main_page extends MY_Controller
 
     public function get_all_posts()
     {
-        $posts =  Post_model::preparation_many(Post_model::get_all(), 'default');
+        $posts = Post_model::preparation_many(Post_model::get_all(), 'default');
+
         return $this->response_success(['posts' => $posts]);
     }
 
     public function get_boosterpacks()
     {
-        $posts =  Boosterpack_model::preparation_many(Boosterpack_model::get_all(), 'default');
+        $posts = Boosterpack_model::preparation_many(Boosterpack_model::get_all(), 'default');
+
         return $this->response_success(['boosterpacks' => $posts]);
     }
 
-    public function get_post(int $post_id){
+    public function get_post(int $post_id)
+    {
+        $post = Post_model::preparation(Post_model::get_post($post_id), 'full_info');
+        if ($post === NULL)
+        {
+            return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_WRONG_PARAMS);
+        }
 
-        //TODO получения поста по id
+        return $this->response_success(['post' => $post]);
     }
 
-
-    public function comment(){
-
-        if ( ! User_model::is_logged())
-        {
+    public function comment()
+    {
+        if ( ! User_model::is_logged()) {
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        //TODO логика комментирования поста
-    }
+        $comment = Comment_model::add_comment($this->input->post());
 
+        return $this->response_success(['comment' => $comment]);
+    }
 
     public function login()
     {
-        //TODO
+        $user = Login_model::login($this->input->post('login'), $this->input->post('password'));
+        if ($user->get_id())
+        {
+            return $this->response_success(['user' => $user]);
+        }
 
-        return $this->response_success();
+        return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_WRONG_PARAMS);
     }
-
 
     public function logout()
     {
-        //TODO
+        Login_model::logout();
+
+        redirect('/');
     }
 
-    public function add_money(){
+    public function add_money()
+    {
         if ( ! User_model::is_logged())
         {
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
@@ -81,34 +95,57 @@ class Main_page extends MY_Controller
 
         $sum = (float)App::get_ci()->input->post('sum');
 
-        //TODO логика добавления денег
+        $user = User_model::get_user();
+
+        if ( $user->add_money($sum) )
+        {
+            return $this->response_success();
+        } else {
+            return $this->response_error(System\Libraries\Core::DB_STATE_ERROR);
+        }
     }
 
     public function buy_boosterpack()
     {
-        // Check user is authorize
         if ( ! User_model::is_logged())
         {
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        //TODO логика покупки и открытия бустерпака по алгоритмку профитбанк, как описано в ТЗ
+        $boosterpack = Boosterpack_model::get_boosterpack($this->input->post('id'));
+        $amount = $boosterpack->open();
+
+        if ($amount != FALSE)
+        {
+            return $this->response_success(['amount' => $amount]);
+        } else {
+            return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NO_DATA);
+        }
     }
 
-
     /**
-     *
      * @return object|string|void
      */
     public function like_comment(int $comment_id)
     {
-        // Check user is authorize
         if ( ! User_model::is_logged())
         {
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        //TODO логика like comment(remove like у юзерa, добавить лай к комменту)
+        $user = User_model::get_user();
+        $comment = Comment_model::get_comment($comment_id);
+        if ( $comment->increment_likes($user) )
+        {
+            return $this->response_success(
+                [
+                    'user' => User_model::preparation($user),
+                    'comment' => Comment_model::preparation($comment),
+                ]);
+        } else {
+            return $this->response_error(User_model::RESPONSE_NO_ENOUGH_LIKES);
+        }
+
     }
 
     /**
@@ -124,9 +161,20 @@ class Main_page extends MY_Controller
             return $this->response_error(System\Libraries\Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        //TODO логика like post(remove like у юзерa, добавить лай к посту)
-    }
+        $post = Post_model::get_post($post_id);
+        $user = User_model::get_user();
 
+        if ( $post->increment_likes($user))
+        {
+            return $this->response_success(
+                [
+                    'user' => User_model::preparation($user),
+                    'post' => Post_model::preparation($post),
+                ]);
+        } else {
+            return $this->response_error(User_model::RESPONSE_NO_ENOUGH_LIKES);
+        }
+    }
 
     /**
      * @return object|string|void
